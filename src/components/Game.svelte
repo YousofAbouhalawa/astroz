@@ -12,6 +12,8 @@
 		x: number;
 		y: number;
 		hits: number;
+		rotateDirection: boolean;
+		speed: number;
 		hitThrottled: boolean;
 		flashing: boolean;
 	}[] = $state([]);
@@ -60,6 +62,7 @@
 		ctx.clearRect(0, 0, canvasDimensions.width, canvasDimensions.height);
 
 		ctx.fillStyle = playerColor;
+
 		ctx.save();
 		ctx.beginPath();
 		ctx.moveTo(playerPosition.x - playerWidth / 2, playerPosition.y);
@@ -87,8 +90,13 @@
 		if (!ctx) return;
 
 		for (const rock of rocks) {
+			ctx.save();
+			ctx.translate(rock.x + 25, rock.y + 25);
+			const rotationAngle = (performance.now() / 1000) % (2 * Math.PI);
+			ctx.rotate(rock.rotateDirection ? rotationAngle : -rotationAngle);
 			ctx.fillStyle = rock.flashing ? 'red' : 'gray';
-			ctx.fillRect(rock.x, rock.y, 50, 50);
+			ctx.fillRect(-25, -25, 50, 50);
+			ctx.restore();
 		}
 	}
 
@@ -202,11 +210,12 @@
 	}
 
 	function moveRocks(deltaTime: number) {
-		const rockSpeed = 50;
-		const distance = (rockSpeed * deltaTime) / 1000;
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
+
 		for (const rock of rocks) {
+			const rockSpeed = rock.speed;
+			const distance = (rockSpeed * deltaTime) / 1000;
 			rock.y += distance;
 			if (
 				!isInView({
@@ -230,6 +239,8 @@
 				return {
 					x: position,
 					y: -50,
+					speed: Math.random() * 100 + 50,
+					rotateDirection: Math.random() > 0.5 ? true : false,
 					hits: 0,
 					hitThrottled: false,
 					flashing: false
