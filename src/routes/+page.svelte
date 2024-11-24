@@ -1,5 +1,5 @@
 <script lang="ts">
-    import SpaceInvaders from "../components/SpaceInvaders.svelte";
+	import Game from '../components/Game.svelte';
 </script>
 
-<SpaceInvaders />
+<Game />

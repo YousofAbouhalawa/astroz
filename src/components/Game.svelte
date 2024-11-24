@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 
 	let canvas: HTMLCanvasElement;
-
 	let canvasDimensions = $state({
 		width: 1200,
 		height: 600
@@ -12,7 +11,11 @@
 	let rocks: {
 		x: number;
 		y: number;
+		hits: number;
+		hitThrottled: boolean;
+		flashing: boolean;
 	}[] = $state([]);
+
 	const playerWidth = 35;
 	const playerHeight = 15;
 	const initialOffset = 40;
@@ -20,6 +23,8 @@
 	let playerSpeed = $state(200);
 	let heartDeducted = $state(false);
 	let playerColor = $state('white');
+	let playerScore = $state(0);
+
 	let keyMap: {
 		[key: string]: boolean;
 	} = $state({
@@ -29,7 +34,9 @@
 		ArrowLeft: false,
 		' ': false
 	});
+
 	let playerHearts = $state(4);
+
 	let canvasCenter = $derived.by(() => {
 		return {
 			x: canvasDimensions.width / 2,
@@ -51,8 +58,6 @@
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 		ctx.clearRect(0, 0, canvasDimensions.width, canvasDimensions.height);
-
-		// Draw player
 
 		ctx.fillStyle = playerColor;
 		ctx.save();
@@ -76,38 +81,83 @@
 			ctx.fillRect(laser.x - 1.5, laser.y, 3, 20);
 		}
 	}
+
+	function drawRocks() {
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		for (const rock of rocks) {
+			ctx.fillStyle = rock.flashing ? 'red' : 'gray';
+			ctx.fillRect(rock.x, rock.y, 50, 50);
+		}
+	}
+
 	function isOverlapping(
 		p1: { x: number; y: number; width: number; height: number },
 		p2: { x: number; y: number; width: number; height: number }
 	): boolean {
 		const isOverlappingX = p1.x < p2.x + p2.width && p1.x + p1.width > p2.x;
-
 		const isOverlappingY = p1.y < p2.y + p2.height && p1.y + p1.height > p2.y;
-
 		return isOverlappingX && isOverlappingY;
 	}
 
 	function checkCollisions() {
-		const overlappingRocks = [];
+		const remainingRocks = [];
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+		for (const rock of rocks) {
+			for (const laser of lasers) {
+				if (
+					isOverlapping(
+						{ ...rock, width: 50, height: 50 },
+						{ x: laser.x, y: laser.y, width: 3, height: 20 }
+					)
+				) {
+					ctx.clearRect(laser.x, laser.y, 3, 20);
+					lasers = lasers.filter((l) => l.x !== laser.x);
+					rock.flashing = true;
+					if (!rock.hitThrottled) {
+						rock.hits += 1;
+					}
+					rock.hitThrottled = true;
+					setTimeout(() => (rock.flashing = false), 100);
+					ctx;
+					if (rock.hits > 2) {
+						playerScore += 50;
+					}
+					break;
+				}
+			}
+			rock.hitThrottled = false;
+			if (rock.hits < 3) remainingRocks.push(rock);
+		}
+		rocks = remainingRocks;
+
 		for (const rock of rocks) {
 			if (
 				isOverlapping(
+					{ ...rock, width: 50, height: 50 },
 					{
-						...rock,
-						width: 50,
-						height: 50
-					},
-					{ ...playerPosition, width: playerWidth - 20, height: playerHeight - 10 }
+						...playerPosition,
+						width: playerWidth - 20,
+						height: playerHeight - 10
+					}
 				)
 			) {
-				overlappingRocks.push(rock);
+				playerColor = 'red';
+				if (!heartDeducted) playerHearts -= 1;
+				heartDeducted = true;
 			}
 		}
-		if (overlappingRocks.length) {
-			playerColor = 'red';
-			if (!heartDeducted) playerHearts -= 1;
-			heartDeducted = true;
-		} else {
+
+		if (
+			!rocks.some((rock) =>
+				isOverlapping(
+					{ ...rock, width: 50, height: 50 },
+					{ ...playerPosition, width: playerWidth - 20, height: playerHeight - 10 }
+				)
+			)
+		) {
 			playerColor = 'white';
 			heartDeducted = false;
 		}
@@ -132,66 +182,69 @@
 	function moveLasers(deltaTime: number) {
 		const laserSpeed = 300;
 		const distance = (laserSpeed * deltaTime) / 1000;
-
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
 		lasers = lasers.filter((laser) => laser.y + distance > 0);
 		for (const laser of lasers) {
 			laser.y -= distance;
+			if (
+				!isInView({
+					x: laser.x,
+					y: laser.y,
+					height: 50,
+					width: 50
+				})
+			) {
+				ctx.clearRect(laser.x, laser.y, 3, 20);
+				lasers.filter((l) => l.x !== laser.x);
+			}
 		}
 	}
 
 	function moveRocks(deltaTime: number) {
 		const rockSpeed = 50;
 		const distance = (rockSpeed * deltaTime) / 1000;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
 		for (const rock of rocks) {
 			rock.y += distance;
+			if (
+				!isInView({
+					x: rock.x,
+					y: rock.y,
+					height: 50,
+					width: 50
+				})
+			) {
+				ctx.clearRect(rock.x, rock.y, 50, 50);
+				rocks.filter((r) => r.x !== rock.x);
+			}
 		}
 	}
 
 	function generateRocks() {
-		const length = Math.floor(Math.random() * (10 - 5 + 1)) + 5;
 		rocks = [
 			...rocks,
-			...Array.from({ length }, () => ({
-				x: Math.floor(Math.random() * canvasDimensions.width),
-				y: -50
-			}))
+			...Array.from({ length: 1 }, () => {
+				const position = Math.floor(Math.random() * canvasDimensions.width);
+				return {
+					x: position,
+					y: -50,
+					hits: 0,
+					hitThrottled: false,
+					flashing: false
+				};
+			})
 		];
 	}
 
-	function resetGame() {
-    // Reset player position
-    playerPosition = {
-        x: canvasCenter.x,
-        y: canvasDimensions.height - initialOffset
-    };
-
-    // Reset player properties
-    playerHearts = 4;
-    playerColor = 'white';
-    heartDeducted = false;
-
-    // Clear rocks and lasers
-    rocks = [];
-    lasers = [];
-
-    // Generate new rocks
-    generateRocks();
-
-    // Restart the game loop
-    lastTimestamp = performance.now();
-    requestAnimationFrame(gameLoop);
-}
-
-
-	function drawRocks() {
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
-
-		ctx.fillStyle = 'gray';
-
-		for (const rock of rocks) {
-			ctx.fillRect(rock.x, rock.y, 50, 50);
-		}
+	function isInView(object: { x: number; y: number; height: number; width: number }) {
+		return (
+			object.x + object.width > 0 &&
+			object.x < canvasDimensions.width &&
+			object.y + object.height > 0 &&
+			object.y < canvasDimensions.height
+		);
 	}
 
 	function shootLaser() {
@@ -224,6 +277,25 @@
 		requestAnimationFrame(gameLoop);
 	}
 
+	function resetGame() {
+		playerPosition = {
+			x: canvasCenter.x,
+			y: canvasDimensions.height - initialOffset
+		};
+
+		playerHearts = 4;
+		playerColor = 'white';
+		heartDeducted = false;
+
+		rocks = [];
+		lasers = [];
+
+		generateRocks();
+
+		lastTimestamp = performance.now();
+		requestAnimationFrame(gameLoop);
+	}
+
 	function handleKeyDown(e: KeyboardEvent) {
 		keyMap[e.key] = true;
 
@@ -240,7 +312,7 @@
 		generateRocks();
 		setInterval(() => {
 			generateRocks();
-		}, 6000);
+		}, 2000);
 
 		lastTimestamp = performance.now();
 		requestAnimationFrame(gameLoop);
@@ -255,7 +327,7 @@
 			<div class="font-mono text-[5rem] text-white">Game Over!</div>
 			<button
 				onclick={() => {
-					resetGame()
+					resetGame();
 				}}
 				class="border-2 border-transparent px-10 py-4 text-3xl text-white hover:border-white"
 			>
@@ -269,8 +341,10 @@
 			height={canvasDimensions.height}
 			class="border-[5px] border-accent bg-black"
 		></canvas>
-		<div class="mt-4 font-mono text-4xl text-white">
-			Hearts: {playerHearts}
+
+		<div class="mt-4 flex gap-8 font-mono text-4xl text-white">
+			<div>Hearts: {playerHearts}</div>
+			<div>Score: {playerScore}</div>
 		</div>
 	{/if}
 </div>
