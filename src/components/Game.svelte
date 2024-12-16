@@ -56,6 +56,9 @@
 		y: number;
 	}[] = $state([]);
 
+	let menuVisible = $state(true);
+	let gameOptionsVisible = $state(false);
+
 	function drawPlayer() {
 		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
@@ -305,6 +308,7 @@
 
 		lastTimestamp = performance.now();
 		requestAnimationFrame(gameLoop);
+		menuVisible = false;
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
@@ -324,38 +328,77 @@
 		setInterval(() => {
 			generateRocks();
 		}, 2000);
-
-		lastTimestamp = performance.now();
-		requestAnimationFrame(gameLoop);
 	});
 </script>
 
 <svelte:window on:keydown={handleKeyDown} on:keyup={handleKeyUp} />
 
 <div class="flex h-screen w-screen flex-col items-center justify-center bg-black">
-	{#if playerHearts === 0}
-		<div class="flex flex-col items-center justify-center gap-2">
-			<div class="font-mono text-[5rem] text-white">Game Over!</div>
+	{#if menuVisible}
+		<div class="flex flex-col items-center justify-center gap-4 text-white">
+			<h1 class="font-mono text-5xl">Astroz</h1>
 			<button
 				onclick={() => {
+					menuVisible = false;
 					resetGame();
 				}}
-				class="border-2 border-transparent px-10 py-4 text-3xl text-white hover:border-white"
+				class="border-2 border-white px-10 py-4 text-3xl hover:bg-white hover:text-black"
 			>
-				Play Again
+				Play
 			</button>
+			<button
+				onclick={() => {
+					gameOptionsVisible = true;
+				}}
+				class="border-2 border-white px-10 py-4 text-3xl hover:bg-white hover:text-black"
+			>
+				Options
+			</button>
+			{#if gameOptionsVisible}
+				<div class="mt-4 flex flex-col items-center">
+					<label for="fps" class="font-mono text-xl">Set FPS:</label>
+					<input
+						id="fps"
+						type="number"
+						bind:value={frameRate}
+						class="mt-2 w-20 rounded border px-2 py-1 text-black"
+					/>
+					<button
+						onclick={() => {
+							gameOptionsVisible = false;
+						}}
+						class="mt-4 border-2 border-white px-6 py-2 hover:bg-white hover:text-black"
+					>
+						Save
+					</button>
+				</div>
+			{/if}
 		</div>
 	{:else}
-		<canvas
-			bind:this={canvas}
-			width={canvasDimensions.width}
-			height={canvasDimensions.height}
-			class="border-[5px] border-accent bg-black"
-		></canvas>
+		{#if playerHearts === 0}
+			<div class="flex flex-col items-center justify-center gap-2">
+				<div class="font-mono text-[5rem] text-white">Game Over!</div>
+				<button
+					onclick={() => {
+						menuVisible = true;
+					}}
+					class="border-2 border-transparent px-10 py-4 text-3xl text-white hover:border-white"
+				>
+					Back to Menu
+				</button>
+			</div>
+		{:else}
+			<canvas
+				bind:this={canvas}
+				width={canvasDimensions.width}
+				height={canvasDimensions.height}
+				class="border-[5px] border-accent bg-black"
+			></canvas>
 
-		<div class="mt-4 flex gap-8 font-mono text-4xl text-white">
-			<div>Hearts: {playerHearts}</div>
-			<div>Score: {playerScore}</div>
-		</div>
+			<div class="mt-4 flex gap-8 font-mono text-4xl text-white">
+				<div>Hearts: {playerHearts}</div>
+				<div>Score: {playerScore}</div>
+			</div>
+		{/if}
 	{/if}
 </div>
