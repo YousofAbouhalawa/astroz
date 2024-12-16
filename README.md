@@ -1,11 +1,10 @@
-
-<img src="/static/gameplay-1.png" alt="Gameplay 1" width="650" /> 
-
 # Astroz
-Astroz is a very simple Space Combat game made in SvelteKit. It is my first experience with the HTML5 Canvas element. Developing this minimal project, gave me insight on how games are rendered, how to do collisions, game state management and more. 
+**Astroz** is a simple space combat game built using **SvelteKit**. This project marks my first experience with the HTML5 Canvas element. Developing this minimal game provided valuable insights into game rendering, collision detection, game state management, and more.
 
-# Play
-[Play](https://astroz.yousofabouhalawa.com)
+## Screenshots
+| Gameplay Screenshot 1 | User Interface | Gameplay Screenshot 2 |
+|-----------------------|----------------|-----------------------|
+| ![Gameplay Screenshot 1](/static/gameplay-1.png) | ![User Interface](/static/ui.png) | ![Gameplay Screenshot 2](/static/gameplay-2.png) |
 
-<img src="/static/ui.png" alt="UI" width="650" /> 
-<img src="/static/gameplay-2.png" alt="Gameplay 2" width="650" /> 
+## Play the Game
+Ready to try it out? [Play Astroz here!](https://astroz.yousofabouhalawa.com)
